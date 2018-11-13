@@ -271,6 +271,7 @@ typedef enum {
     PKG_TYPE_VITA_DLC,
     PKG_TYPE_VITA_PATCH,
     PKG_TYPE_VITA_PSM,
+    PKG_TYPE_VITA_THEME,
     PKG_TYPE_PSP,
     PKG_TYPE_PSX,
 } pkg_type;
@@ -317,7 +318,7 @@ int main(int argc, char* argv[])
     }
     if (listing == 0)
     {
-        sys_output("pkg2zip v1.8\n");
+        sys_output("pkg2zip v2.0-alpha\n");
     }
     if (pkg_arg == NULL)
     {
@@ -416,6 +417,10 @@ int main(int argc, char* argv[])
     {
         type = PKG_TYPE_VITA_PSM;
     }
+    else if (content_type == 0x1f)
+    {
+        type = PKG_TYPE_VITA_THEME;
+    }
     else
     {
         sys_error("ERROR: unsupported content type 0x%x", content_type);
@@ -451,6 +456,7 @@ int main(int argc, char* argv[])
     aes128_init(&key, main_key);
 
     char content[256];
+	char themeid[256];
     char title[256];
     char category[256];
     char min_version[256];
@@ -475,9 +481,11 @@ int main(int argc, char* argv[])
             memcpy(content, pkg_header + 0x30, 0x30);
             rif_size = 1024;
         }
-        else // Vita APP, DLC or PATCH
+        else // Vita APP, DLC or PATCH, THEME
         {
             parse_sfo(pkg, sfo_offset, sfo_size, category, title, content, min_version, pkg_version);
+            strncpy(themeid, content + 20, 16);
+            themeid[16] = 0;
             rif_size = 512;
             
             if (type == PKG_TYPE_VITA_APP && strcmp(category, "gp") == 0)
@@ -547,6 +555,14 @@ int main(int argc, char* argv[])
         if (listing == 0)
         {
             sys_output("[*] unpacking Vita PSM\n");
+        }
+    }
+    else if (type == PKG_TYPE_VITA_THEME)
+    {
+        snprintf(root, sizeof(root), "%.9s-%s [%s] [THEME]%s", id, themeid, get_region(id), ext); // TODO: fix id
+        if (listing == 0)
+        {
+            sys_output("[*] unpacking Vita THEME\n");
         }
     }
     else if (type == PKG_TYPE_VITA_APP)
@@ -642,6 +658,14 @@ int main(int argc, char* argv[])
         sys_vstrncat(root, sizeof(root), "/%.9s", id);
         out_add_folder(root);
     }
+    else if (type == PKG_TYPE_VITA_THEME)
+    {
+        sys_vstrncat(root, sizeof(root), "theme");
+        out_add_folder(root);
+
+        sys_vstrncat(root, sizeof(root), "/%.9s-%s", id, themeid); // TODO: fix id
+        out_add_folder(root);
+    }
     else if (type == PKG_TYPE_VITA_APP)
     {
         sys_vstrncat(root, sizeof(root), "app");
@@ -722,7 +746,7 @@ int main(int argc, char* argv[])
                     out_add_folder(path);
                 }
             }
-            else if (type == PKG_TYPE_VITA_APP || type == PKG_TYPE_VITA_DLC || type == PKG_TYPE_VITA_PATCH)
+            else if (type == PKG_TYPE_VITA_APP || type == PKG_TYPE_VITA_DLC || type == PKG_TYPE_VITA_PATCH || type == PKG_TYPE_VITA_THEME)
             {
                 snprintf(path, sizeof(path), "%s/%s", root, name);
                 out_add_folder(path);
@@ -736,7 +760,7 @@ int main(int argc, char* argv[])
         else
         {
             int decrypt = 1;
-            if ((type == PKG_TYPE_VITA_APP || type == PKG_TYPE_VITA_DLC || type == PKG_TYPE_VITA_PATCH) && strcmp("sce_sys/package/digs.bin", name) == 0)
+            if ((type == PKG_TYPE_VITA_APP || type == PKG_TYPE_VITA_DLC || type == PKG_TYPE_VITA_PATCH || type == PKG_TYPE_VITA_THEME) && strcmp("sce_sys/package/digs.bin", name) == 0)
             {
                 // TODO: is this really needed?
                 if (!sce_sys_package_created)
@@ -826,7 +850,7 @@ int main(int argc, char* argv[])
 
     sys_output("[*] unpacking completed\n");
 
-    if (type == PKG_TYPE_VITA_APP || type == PKG_TYPE_VITA_DLC || type == PKG_TYPE_VITA_PATCH)
+    if (type == PKG_TYPE_VITA_APP || type == PKG_TYPE_VITA_DLC || type == PKG_TYPE_VITA_PATCH || type == PKG_TYPE_VITA_THEME)
     {
         if (!sce_sys_package_created)
         {
@@ -876,7 +900,7 @@ int main(int argc, char* argv[])
         out_end_file();
     }
 
-    if ((type == PKG_TYPE_VITA_APP || type == PKG_TYPE_VITA_DLC || type == PKG_TYPE_VITA_PSM) && zrif_arg != NULL)
+    if ((type == PKG_TYPE_VITA_APP || type == PKG_TYPE_VITA_DLC || type == PKG_TYPE_VITA_PSM || type == PKG_TYPE_VITA_THEME) && zrif_arg != NULL)
     {
         if (type == PKG_TYPE_VITA_PSM)
         {

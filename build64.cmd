@@ -11,3 +11,4 @@ rem set CL=%CL% /Od /Zi
 rem set LINK=%LINK% /DEBUG
 
 cl.exe pkg2zip*.c miniz_tdef.c puff.c /Fepkg2zip_x86-64.exe
+if not exist pkg2zip_x86-64.exe pause
